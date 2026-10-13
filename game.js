@@ -200,6 +200,17 @@
       '..s..',
       's.s..',
       'ssS..'
+    ]),
+    chest: makeSprite([
+      '.NNNNNNNN.',
+      'NnnnnnnnnN',
+      'NnnnnnnnnN',
+      'NNNNyyNNNN',
+      'NnnnyynnnN',
+      'NnnnnnnnnN',
+      'NnnnnnnnnN',
+      'NNNNNNNNNN',
+      '.kkkkkkkk.'
     ])
   };
 
@@ -210,7 +221,8 @@
     koi:    { kind: 'fish', pts: 100, spr: 'koi',    w: 10, h: 18, speed: [52, 66], amp: [14, 26], freq: [1.4, 2.2], reel: 85,  weight: 5,  col: '#ffd23f' },
     boot:   { kind: 'junk', tangle: 2.2, spr: 'boot', w: 10, h: 12, speed: [26, 36], amp: [2, 5], freq: [0.5, 1], reel: 60, weight: 14, col: '#9a6240' },
     can:    { kind: 'junk', tangle: 1.6, spr: 'can',  w: 8,  h: 10, speed: [30, 40], amp: [2, 6], freq: [0.6, 1.2], reel: 70, weight: 14, col: '#c4cfd8' },
-    tire:   { kind: 'junk', tangle: 3.0, spr: 'tire', w: 12, h: 11, speed: [24, 32], amp: [1, 4], freq: [0.4, 0.8], reel: 45, weight: 10, col: '#7d8a96' }
+    tire:   { kind: 'junk', tangle: 3.0, spr: 'tire', w: 12, h: 11, speed: [24, 32], amp: [1, 4], freq: [0.4, 0.8], reel: 45, weight: 10, col: '#7d8a96' },
+    chest:  { kind: 'fish', pts: 200, spr: 'chest', w: 10, h: 9, speed: [22, 28], amp: [1, 3], freq: [0.4, 0.8], reel: 50, weight: 2, col: '#ffd23f' }
   };
   for (const k in TYPES) TYPES[k].name = k;
 
@@ -239,6 +251,7 @@
   let streak = 0, fishCount = 0, junkCount = 0;
   let timeUp = false, newBest = false;
   let overT = 0, shake = 0, scroll = 0, clock = 0, spawnT = 0, lastTick = 99;
+  let flash = 0;                   // NEW: gold screen flash timer
 
   const player = { x: W / 2, bob: 0, moving: false };
   const hook = { state: 'idle', x: W / 2, y: REST_Y, caught: null, tangle: 0, tangleMax: 1 };
@@ -303,6 +316,20 @@
     over:  () => [392, 330, 262, 196].forEach((f, i) => tone(f, f, 0.16, 'square', 0.05, i * 0.16))
   };
 
+  const melody = [262, 330, 392, 330, 262, 330, 392, 523];
+  let noteIndex = 0, musicTimer = 0;
+
+  function updateMusic(dt) {
+    if (mode !== 'play') return;
+    musicTimer -= dt;
+    if (musicTimer <= 0) {
+      const f = melody[noteIndex] / 2;
+      tone(f, f, 0.2, 'triangle', 0.025);
+      noteIndex = (noteIndex + 1) % melody.length;
+      musicTimer = 0.3;
+    }
+  }
+
   // ---------- spawning ----------
   function spawn(y) {
     const t = pickType();
@@ -346,7 +373,7 @@
   function resetRound() {
     score = 0; timeLeft = ROUND_TIME; elapsed = 0;
     streak = 0; fishCount = 0; junkCount = 0;
-    timeUp = false; newBest = false; lastTick = 99; shake = 0;
+    timeUp = false; newBest = false; lastTick = 99; shake = 0; flash = 0;
     objs = []; particles = []; ripples = []; popups = [];
     player.x = W / 2; player.bob = 0; player.moving = false;
     hook.state = 'idle'; hook.x = player.x; hook.y = REST_Y; hook.caught = null;
@@ -412,6 +439,7 @@
       score += pts;
       streak++;
       fishCount++;
+      if (o.type.name === 'koi' && !REDUCED) flash = 0.3;
       popup(hook.x, REST_Y + 6, '+' + pts, o.type.name === 'koi' ? C.gold : C.cream);
       burst(hook.x, REST_Y + 8, o.type.col, 12);
       sfx.fish(o.type.name === 'koi');
@@ -482,6 +510,7 @@
     popups = popups.filter(p => p.life > 0);
 
     if (shake > 0) shake = Math.max(0, shake - dt);
+    if (flash > 0) flash = Math.max(0, flash - dt);   // NEW: flash fades out
   }
 
   function updateHook(dt) {
@@ -704,8 +733,11 @@
 
   function drawRod() {
     const px = Math.round(player.x);
-    pline(px + 4, 28, px, TIP_Y, C.rod);
-    pline(px + 5, 28, px + 1, TIP_Y, C.rod);
+    let bend = 0;
+    if (hook.state === 'reel' && hook.caught) bend = 2;
+    if (hook.state === 'tangle') bend = 3;
+    pline(px + 4, 28, px, TIP_Y + bend, C.rod);
+    pline(px + 5, 28, px + 1, TIP_Y + bend, C.rod);
   }
 
   function drawLineAndHook() {
@@ -797,6 +829,13 @@
     text('FISH ' + fishCount + '   JUNK ' + junkCount, W / 2, 106, { align: 'center' });
     text('BEST ' + pad5(best), W / 2, 126, { align: 'center' });
     if (newBest && Math.floor(clock * 3) % 2 === 0) text('NEW BEST!', W / 2, 150, { align: 'center', color: C.mint });
+
+    let rank = 'JUNK COLLECTOR';
+    if (score >= 250) rank = 'BEGINNER';
+    if (score >= 500) rank = 'FISHERMAN';
+    if (score >= 1000) rank = 'FISH MASTER';
+    text('RANK: ' + rank, W / 2, 166, { align: 'center', color: C.mint });
+
     if (overT > 0.7 && Math.floor(clock * 2) % 2 === 0) text('SPACE TO FISH AGAIN', W / 2, 196, { align: 'center', color: C.gold });
   }
 
@@ -827,6 +866,15 @@
     drawPopups();
     ctx.restore();
 
+    const night = Math.min(elapsed / ROUND_TIME, 1) * 0.55;
+    ctx.fillStyle = 'rgba(10, 5, 40, ' + night + ')';
+    ctx.fillRect(0, 0, W, H);
+
+    if (flash > 0) {
+      ctx.fillStyle = 'rgba(255, 210, 63, ' + flash + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
     drawHUD();
 
     if (mode === 'title') drawTitle();
@@ -843,6 +891,7 @@
     if (mode === 'play') {
       updateWorld(dt);
       updatePlay(dt);
+      updateMusic(dt);
     } else if (mode === 'title') {
       updateWorld(dt);
     } else if (mode === 'over') {
