@@ -1,0 +1,124 @@
+:root {
+  --night: #120a24;
+  --purple: #55318f;
+  --purple-dark: #2a1650;
+  --coral: #ff5d73;
+  --gold: #ffd23f;
+  --cream: #ffe8b0;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 0%, #4a1f6e 0%, transparent 60%),
+    var(--night);
+  color: var(--cream);
+  font-family: "Press Start 2P", "Courier New", monospace;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cabinet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 14px;
+}
+
+/* screen width follows whichever is smaller: viewport width or the height that fits 4:3 */
+.screen {
+  position: relative;
+  width: min(94vw, calc((100vh - 130px) * 4 / 3), 960px);
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border: 6px solid var(--purple-dark);
+  box-shadow:
+    0 0 0 3px #0a0518,
+    0 0 0 9px var(--purple),
+    0 0 0 12px #0a0518,
+    0 0 48px rgba(255, 93, 115, 0.28);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* scanlines and a soft vignette */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.42) 100%);
+}
+
+.help {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  text-align: center;
+  font-size: clamp(8px, 1.5vw, 11px);
+  line-height: 1.9;
+  opacity: 0.8;
+}
+
+/* touch controls only show up on phones and tablets */
+.pad {
+  display: none;
+  width: min(94vw, 520px);
+  gap: 12px;
+}
+
+.pad button {
+  flex: 1;
+  height: 68px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--cream);
+  background: var(--purple);
+  border: 4px solid #0a0518;
+  box-shadow: 0 5px 0 #1d0f3d, inset 0 0 0 2px #7a52b8;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pad button.cast {
+  flex: 1.4;
+  background: var(--coral);
+  box-shadow: 0 5px 0 #8a2437, inset 0 0 0 2px #ff9aa8;
+}
+
+.pad button.is-down {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #1d0f3d, inset 0 0 0 2px #7a52b8;
+}
+
+.pad button.cast.is-down {
+  box-shadow: 0 1px 0 #8a2437, inset 0 0 0 2px #ff9aa8;
+}
+
+.pad button:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  .pad { display: flex; }
+  .help { display: none; }
+  .screen { width: min(94vw, calc((100vh - 170px) * 4 / 3)); }
+}
